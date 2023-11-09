@@ -1,0 +1,11 @@
+---
+- name: Allow DNS access
+  community.general.ufw:
+    rule: allow
+    port: "{{ dns_port }}"
+
+- name: Allow bind RNDC access
+  community.general.ufw:
+    rule: allow
+    port: "{{ dns_sync_port }}"
+    proto: tcp

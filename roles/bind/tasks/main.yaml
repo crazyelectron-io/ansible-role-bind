@@ -1,0 +1,117 @@
+---
+- name: DNS | Deploy Bind9 packages
+  ansible.builtin.apt:
+    pkg: "{{ bind9_packages }}"
+    state: present
+    cache_valid_time: 600
+
+- name: Enable only IPv4 on interface and set 2 threads
+  ansible.builtin.lineinfile:
+    path: /etc/default/named
+    regexp: '^OPTIONS'
+    line: 'OPTIONS="-4 -n 2 -U 2 -u bind"'
+    owner: root
+    group: root
+    mode: 0644    
+  notify:
+    - restart bind9
+  tags:
+    - role:bind9:ip4
+
+- name: DNS | Copy RNDC key file
+  template:
+    src: "{{ bind9_templates | default('') }}rndc.key.j2"
+    dest: /etc/bind/rndc.key
+    owner: root
+    group: "{{ bind9_group }}"
+    mode: 0640
+  notify:
+    - restart bind9
+
+- name: Allow logging in /var/log/bind
+  ansible.builtin.lineinfile:
+    path: /etc/apparmor.d/local/usr.sbin.named
+    regexp: '^{{ bind9_log_path }}'
+    line: '{{ bind9_log_path }}/bind.log rw,'
+    owner: root
+    group: root
+    mode: 0644
+  register: apparmor
+
+- name: Reload changed Apparmor profiles
+  command: apparmor_parser --replace "/etc/apparmor.d/usr.sbin.named"
+  when: apparmor.changed
+  notify:
+    - Reboot Linux
+
+- name: Setup logs
+  block:
+    - name: ensure existence of the log directory 
+      file:
+        path: "{{ bind9_log_path }}"
+        state: directory
+        owner: "{{ bind9_user }}"
+        group: "{{ bind9_group }}"
+        mode: 0775
+
+    - name: configure log rotate for bind9
+      template:
+        src: "{{ bind9_templates | default('') }}logrotate.d/bind.j2"
+        dest: /etc/logrotate.d/bind
+        owner: root
+        group: "{{ bind9_group }}"
+        mode: 0644
+  when: bind9_named_logging
+
+- name: DNS | Copy bind9 config file
+  template:
+    src: named.conf.j2
+    dest: /etc/bind/named.conf
+    owner: root
+    group: "{{ bind9_group }}"
+    mode: 0644
+  notify:
+    - restart bind9
+
+- name: Create new zone files
+  block:
+    - name: DNS | Copy main domain zone file
+      template:
+        src: zones/main-domain.zone.j2
+        dest: "{{ bind9_lib_path }}/db.{{ main_donain }}"
+        owner: "{{ bind9_user }}"
+        group: "{{ bind9_group }}"
+        mode: 0644
+      notify:
+        - restart bind9
+
+    - name: DNS | Copy main domain reverse zone file
+      template:
+        src: zones/main-domain.rev-zone.j2
+        dest: "{{ bind9_lib_path }}/db.{{ main_donain }}.rev"
+        owner: "{{ bind9_user }}"
+        group: "{{ bind9_group }}"
+        mode: 0644
+      notify:
+        - restart bind9
+  when: install_zone_files
+
+# - name: create empty external zones file for now
+#   ansible.builtin.file:
+#     path: /etc/bind/named.conf.external-zones
+#     state: touch
+#     owner: root
+#     group: "{{ bind9_group }}"
+#     mode: 0644
+#     modification_time: preserve
+#     access_time: preserve
+
+- name: DNS | Set resolv.conf to localhost
+  copy:
+    dest: "/etc/resolv.conf"
+    content: |
+      nameserver 127.0.0.1
+      nameserver 8.8.8.8
+      search {{ main_domain }}
+
+- include_tasks: bind-firewall.yml

@@ -82,6 +82,9 @@ None.
 
 ## Workflow to deploy from the project
 
-1. Clone the project repository
+1. Add the bind dependancy to `rerquirements.yaml`.
 2. Download the external roles: `ansible-galaxy install -r roles/requirements`
-3. Launch your playbook: `ansible-playbook -i inventory some_playbook.yml [-u ANSIBLE_USER]`
+3. Add a `.gitignore` in the `roles` directory to ensure this downloaded roles are not committed to the playbook repository (see `.gitignore-example`).
+4. Add the role variables to `inventorygroup_vars\all.sops.yaml` (see `example.all.sops.yaml`).
+5. Setup the inventory hosts file `hots.yaml` (see `example.hosts.yaml`).
+6. Launch your playbook: `ansible-playbook -i inventory some_playbook.yml [-u ANSIBLE_USER]`

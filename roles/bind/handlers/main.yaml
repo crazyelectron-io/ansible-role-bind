@@ -1,0 +1,15 @@
+---
+- name: restart bind9
+  service:
+    name: bind9
+    state: restarted
+
+- name: reload bind9
+  service:
+    name: bind9
+    state: reloaded
+
+- name: Reboot Linux
+  reboot:
+    reboot_timeout: 300
+  register: reboot

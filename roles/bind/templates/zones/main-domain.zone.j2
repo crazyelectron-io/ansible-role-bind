@@ -1,0 +1,22 @@
+$ORIGIN .
+$TTL 28800      ; 8 hours
+{{ main_domain }}          IN SOA  dns01.{{ main_domain }}. root.{{ main_domain }}. (
+                                2023110798 ; serial
+                                3600       ; refresh (1 hour)
+                                600        ; retry (10 minutes)
+                                86400      ; expire (1 day)
+                                30000      ; minimum (8 hours 20 minutes)
+                                )
+                        NS      dns01.{{ main_domain }}.
+                        NS      dns02.{{ main_domain }}.
+$ORIGIN {{ main_domain }}.
+$TTL 3600
+gateway                 A       10.0.0.1
+kvm                     A       10.0.0.3
+mynas                   A       10.0.0.2
+dns01                   A       10.0.0.10
+dns02                   A       10.0.0.8
+prox01                  A       10.0.0.11
+prox02                  A       10.0.0.12
+prox03                  A       10.0.0.13
+www                     A       10.100.3.101
