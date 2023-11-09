@@ -167,7 +167,6 @@ zone 0.in-addr.arpa {
     type secondary;
     primaries { {{ hostvars[groups['dns_master'][0]]['ansible_default_ipv4']['address'] }}; };
 {% endif %}
-
     file "/etc/bind/db.0";
 };
 
