@@ -1,0 +1,16 @@
+# file: meta/main.yml
+# synopsis: define dependencies
+---
+galaxy_info:
+  role_name: bind
+  author: crazyelectron-io
+  description: Setup a HA BIND9 DNS configuration with master-slave setup
+  company: 'clouds+more'
+  license: license (GPLv3)
+  min_ansible_version: '2.9'
+  platforms:
+    - name: Debian
+      versions:
+        - bookworm
+  galaxy_tags:
+    - debian
