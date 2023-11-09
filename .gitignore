@@ -1,9 +1,3 @@
-*.iso
-temp-iso/
-firmeware/
-*.tar
-*.gz
-
 # SOPS decrypted files
 *.decrypted~*
 

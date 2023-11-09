@@ -1,8 +1,0 @@
-[defaults]
-...
-vars_plugins_enabled = host_group_vars,community.sops.sops
-roles_path = roles
-[community.sops]
-vars_stage = inventory
-[inventory]
-enable_plugins = host_list, script, auto, yaml, ini

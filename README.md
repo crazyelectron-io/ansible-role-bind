@@ -42,7 +42,7 @@ These variables can be specified in the `all.sops.yaml` inventory file or in the
 
 ## Encrypted configuration file
 
-This repo has all the secrets in one YAML file `./inventory/group_vars/all.sops.yaml` and the very first time we create it, it must be encrypted manually once with SOPS:
+This role uses global variables from `./inventory/group_vars/all.sops.yaml` and the very first time we create it, it must be encrypted manually once with SOPS:
 
 ```bash
 sops -e -i ./inventory/group_vars/all.sops.yaml
@@ -57,6 +57,58 @@ In addition, a SOPS configuration file is created in the `./inventory` directory
   creation_rules:
     - path_regex: .*vars/.*
       age: "age109fzapgarv59gpxu5zqmwgn8j7hxmfz8dhrz9lrqvky046jxafmse38kvj"
+```
+
+## Inventory example
+
+```yaml
+# file: inventory/group_vars/all.sops.yaml
+dns_master:
+  hosts:
+    gandalf:
+      ansible_port: 22
+      ansible_host: 10.0.0.10
+dns_slave:
+  hosts:
+    sauron:
+      ansible_port: 22
+      ansible_host: 10.0.0.8
+dns_server:
+  children:
+    dns_master:
+    dns_slave:
+```
+
+### Roles directory
+
+To ensure the local roles that are specific for the playbook are dfistinguishable, place them in the directory `roles/local` to ensure onlyt hese are commited to the repository.
+Roles like this that are downloaded via `requirements.yaml` are placed directly in the `roles` directory and not included in the playbook repository.
+A simple `roles/.gitignore` will take care of that:
+
+```ini
+#Ignore everything in roles dir...
+/*
+# ... but current file...
+!.gitignore
+# ... external role requirement file
+!requirements.yml
+# ... and configured custom/local roles
+!local*/
+```
+
+### Ansible configuration
+
+To use the automated encryption/decryption, there are a few additional requirements for the Ansible configuration to be specified in the `ansible.cfg` file.
+
+```ini
+[defaults]
+...
+vars_plugins_enabled = host_group_vars,community.sops.sops
+roles_path = roles
+[community.sops]
+vars_stage = inventory
+[inventory]
+enable_plugins = host_list, script, auto, yaml, ini
 ```
 
 ## Usage of this role
