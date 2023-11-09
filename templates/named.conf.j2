@@ -6,7 +6,7 @@ options {
     listen-on port {{ dns_port }}
     {
         127.0.0.1;
-        {{ groups['dns_master'][0] if ansible_hostname == groups['dns_master'][0] else groups['dns_slave'][0] }};
+        {{ hostvars[groups['dns_master'][0]]['ansible_default_ipv4']['address'] if ansible_hostname == groups['dns_master'][0] else hostvars[groups['dns_slave'][0]]['ansible_default_ipv4']['address'] }};
     };
     # We're not listening for IPv6 requests
     listen-on-v6 { none; };
@@ -33,20 +33,18 @@ options {
 
     # Notify name servers in the NS records of changes
     notify yes;
-    also-notify { {{ secgroups['dns_slave'][0] if ansible_hostname == groups['dns_master'][0] else groups['dns_master'][0] }}; };
+    also-notify { {{ hostvars[groups['dns_slave'][0]]['ansible_default_ipv4']['address'] if ansible_hostname == groups['dns_master'][0] else hostvars[groups['dns_master'][0]]['ansible_default_ipv4']['address'] }}; };
 
     # Define hosts that are allowed to receive zone transfers
-    allow-transfer { {{ groups['dns_slave'][0] if ansible_hostname == groups['dns_master'][0] else groups['dns_master'][0] }}; };
+    allow-transfer { {{ hostvars[groups['dns_slave'][0]]['ansible_default_ipv4']['address'] if ansible_hostname == groups['dns_master'][0] else hostvars[groups['dns_master'][0]]['ansible_default_ipv4']['address'] }}; };
 
     # Only our DHCP/DNS servers are allowed to perform dynamic updates
     allow-update
     {
         localhost;
-        {{ groups['dns_master'][0] }};
-        {{ groups['dns_slave'][0] }};
+        {{ hostvars[groups['dns_master'][0]]['ansible_default_ipv4']['address'] }};
+        {{ hostvars[groups['dns_slave'][0]]['ansible_default_ipv4']['address'] }};
     };
-
-    ddns-update-style interim;
 
     # Don't give authoritative NXDOMAIN answer for non-authoritative domains
     auth-nxdomain no;       # conform to RFC1035
@@ -96,8 +94,8 @@ include "/etc/bind/rndc.key";
 controls {
     inet 127.0.0.1 port {{ dns_sync_port }} allow {
         127.0.0.1;
-        {{ groups['dns_master'][0] }};
-        {{ groups['dns_slave'][0] }};
+        {{ hostvars[groups['dns_master'][0]]['ansible_default_ipv4']['address'] }};
+        {{ hostvars[groups['dns_slave'][0]]['ansible_default_ipv4']['address'] }};
     } keys { "rndc-key"; };
 };
 
@@ -106,11 +104,11 @@ zone {{ main_domain }} {
 {% if ansible_hostname == groups['dns_master'][0] %}
     type master;
     allow-update { key rndc-key; };
-    allow-transfer { {{ groups['dns_slave'][0] }}; }; #Allow Transfer of zone from the master server
+    allow-transfer { {{ hostvars[groups['dns_slave'][0]]['ansible_default_ipv4']['address'] }}; };
 {% else %}
     type slave;
-    masters { {{ groups['dns_master'][0] }}; };
-    allow-update-forwarding { {{ groups['dns_master'][0] }}; };
+    masters { {{ hostvars[groups['dns_master'][0]]['ansible_default_ipv4']['address'] }}; };
+    allow-update-forwarding { {{ hostvars[groups['dns_master'][0]]['ansible_default_ipv4']['address'] }}; };
 {% endif %}
     notify yes;
     file "/var/lib/bind/db.{{ main_domain }}";
@@ -121,11 +119,11 @@ zone 10.in-addr.arpa {
 {% if ansible_hostname == groups['dns_master'][0] %}
     type master;
     allow-update { key rndc-key; };
-    allow-transfer { {{ groups['dns_slave'][0] }}; };    #Allow zonetransfer from master server
+    allow-transfer { {{ hostvars[groups['dns_slave'][0]]['ansible_default_ipv4']['address'] }}; };
 {% else %}
     type slave;
-    masters { {{ groups['dns_master'][0] }}; };
-    allow-update-forwarding { {{ groups['dns_master'][0] }}; };
+    masters { {{ hostvars[groups['dns_master'][0]]['ansible_default_ipv4']['address'] }}; };
+    allow-update-forwarding { {{ hostvars[groups['dns_master'][0]]['ansible_default_ipv4']['address'] }}; };
 {% endif %}
     notify yes;
     file "/var/lib/bind/db.{{ main_domain }}.rev";
@@ -138,28 +136,48 @@ zone "." {
         file "/usr/share/dns/root.hints";
 };
 
-# Be authoritative for the localhost forward and reverse zones, and for
-#   broadcast zones as per RFC 1912
+# Be authoritative for the localhost forward and reverse zones, and for broadcast zones as per RFC 1912
 zone localhost {
-        type master;
-        allow-update { key rndc-key; };
-        file "/etc/bind/db.local";
+{% if ansible_hostname == groups['dns_master'][0] %}
+    type primary;
+    allow-update { key rndc-key; };
+{% else %}
+    type secondary;
+    primaries { {{ hostvars[groups['dns_master'][0]]['ansible_default_ipv4']['address'] }}; };
+{% endif %}
+    file "/etc/bind/db.local";
 };
 
 zone 127.in-addr.arpa {
-        type master;
-        allow-update { key rndc-key; };
-        file "/etc/bind/db.127";
+{% if ansible_hostname == groups['dns_master'][0] %}
+    type primary;
+    allow-update { key rndc-key; };
+{% else %}
+    type secondary;
+    primaries { {{ hostvars[groups['dns_master'][0]]['ansible_default_ipv4']['address'] }}; };
+{% endif %}
+    file "/etc/bind/db.127";
 };
 
 zone 0.in-addr.arpa {
-        type master;
-        allow-update { key rndc-key; };
-        file "/etc/bind/db.0";
+{% if ansible_hostname == groups['dns_master'][0] %}
+    type primary;
+    allow-update { key rndc-key; };
+{% else %}
+    type secondary;
+    primaries { {{ hostvars[groups['dns_master'][0]]['ansible_default_ipv4']['address'] }}; };
+{% endif %}
+
+    file "/etc/bind/db.0";
 };
 
-zone 255.in-addr.arpa"{
-        type master;
-        allow-update { key rndc-key; };
-        file "/etc/bind/db.255";
+zone 255.in-addr.arpa {
+{% if ansible_hostname == groups['dns_master'][0] %}
+    type primary;
+    allow-update { key rndc-key; };
+{% else %}
+    type secondary;
+    primaries { {{ hostvars[groups['dns_master'][0]]['ansible_default_ipv4']['address'] }}; };
+{% endif %}
+    file "/etc/bind/db.255";
 };
