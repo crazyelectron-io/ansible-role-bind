@@ -1,0 +1,17 @@
+# file: inventory/group_vars/all.sops.yaml
+# synopsis: main variables file for BIND9 DNS deployment
+---
+# The primary domain
+main_domain: ""
+# Bind daemon user and group (default: bind)
+bind9_user: bind
+bind9_group: bind
+# Should we act as a forwarding (=caching) DNS server?
+bind9_forward: "yes"
+bind9_forward_servers:
+    - 1.1.1.1
+    - 8.8.8.8
+# The DNS servers handed out by DHCP
+dns_servers: '{{ bind9_forward_servers[0] }}, {{ bind9_forward_servers[1] }}, 1.1.1.1'
+# Dynamic DNS update key for DHCP
+rndc_key: ""

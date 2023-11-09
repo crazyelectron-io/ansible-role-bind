@@ -1,0 +1,9 @@
+# file: deploy-gandalf.yml
+# synopsis: Deploy the software and configuration settings for the Gandalf Management server
+---
+- hosts: all
+  remote_user: "{{ my_user }}"
+  become: true
+  gather_facts: true
+  roles:
+    - bind

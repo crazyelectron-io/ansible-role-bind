@@ -1,0 +1,8 @@
+# file: roles/requirements.yaml
+# synopsis: Run 'ansible-galaxy install -r roles/requirements.yaml --force'
+---
+# Include the 'bind` role from GitHub
+- src: git@github.com:crazyelectron-io/ansible-role-bind9.git
+  scm: git
+  version: main
+  name: bind
