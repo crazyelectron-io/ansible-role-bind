@@ -96,16 +96,6 @@
         - restart bind9
   when: install_zone_files
 
-# - name: create empty external zones file for now
-#   ansible.builtin.file:
-#     path: /etc/bind/named.conf.external-zones
-#     state: touch
-#     owner: root
-#     group: "{{ bind9_group }}"
-#     mode: 0644
-#     modification_time: preserve
-#     access_time: preserve
-
 - name: DNS | Set resolv.conf to localhost
   copy:
     dest: "/etc/resolv.conf"
