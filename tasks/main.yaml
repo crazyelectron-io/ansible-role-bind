@@ -1,22 +1,35 @@
 ---
-- name: DNS | Deploy Bind9 packages
+- name: DNS | Deploy BIND9 packages
   ansible.builtin.apt:
     pkg: "{{ bind9_packages }}"
     state: present
     cache_valid_time: 600
+  when: inventory_hostname in groups.dns_servers
 
-- name: Enable only IPv4 on interface and set 2 threads
+- name: DNS | Copy RNDC key file
+  template:
+    src: "{{ bind9_templates | default('') }}rndc.key.j2"
+    dest: /etc/bind/rndc.key
+    owner: root
+    group: "{{ bind9_group }}"
+    mode: 0640
+  notify:
+    - restart bind9
+  when: inventory_hostname in groups.dns_servers
+
+- name: DNS | Enable only IPv4 on interface and set 2 threads
   ansible.builtin.lineinfile:
     path: /etc/default/named
     regexp: '^OPTIONS'
     line: 'OPTIONS="-4 -n 2 -U 2 -u bind"'
     owner: root
     group: root
-    mode: 0644    
+    mode: 0644
   notify:
     - restart bind9
   tags:
     - role:bind9:ip4
+  when: inventory_hostname in groups.dns_servers
 
 - name: DNS | Copy RNDC key file
   template:
@@ -61,7 +74,15 @@
         owner: root
         group: "{{ bind9_group }}"
         mode: 0644
-  when: bind9_named_logging
+  when: bind9_named_logging and inventory_hostname in groups.dns_servers
+
+- name: DNS | Ensure existence of the {{ bind9_lib_path }} directory
+  file:
+    path: "{{ bind9_lib_path }}"
+    state: directory
+    owner: "{{ bind9_user }}"
+    group: "{{ bind9_group }}"
+    mode: 0775
 
 - name: DNS | Copy bind9 config file
   template:
@@ -73,35 +94,24 @@
   notify:
     - restart bind9
 
-- name: Create new zone files
-  block:
-    - name: DNS | Copy main domain zone file
-      template:
-        src: zones/main-domain.zone.j2
-        dest: "{{ bind9_lib_path }}/db.{{ main_donain }}"
-        owner: "{{ bind9_user }}"
-        group: "{{ bind9_group }}"
-        mode: 0644
-      notify:
-        - restart bind9
-
-    - name: DNS | Copy main domain reverse zone file
-      template:
-        src: zones/main-domain.rev-zone.j2
-        dest: "{{ bind9_lib_path }}/db.{{ main_donain }}.rev"
-        owner: "{{ bind9_user }}"
-        group: "{{ bind9_group }}"
-        mode: 0644
-      notify:
-        - restart bind9
-  when: install_zone_files
+- name: DNS | Change ownership of the 'db.xxx' files in /etc/bind
+  ansible.builtin.file:
+    path: '/etc/bind/{{ item.file }}'
+    owner: '{{ item.owner }}'
+    group: '{{ item.group }}'
+    mode: '{{ item.mode }}'
+  loop:
+    - { file: db.0, owner: "{{ bind9_user }}", group: "{{ bind9_group }}", mode: '0644' }
+    - { file: db.127, owner: "{{ bind9_user }}", group: "{{ bind9_group }}", mode: '0644' }
+    - { file: db.255, owner: "{{ bind9_user }}", group: "{{ bind9_group }}", mode: '0644' }
+    - { file: db.empty, owner: "{{ bind9_user }}", group: "{{ bind9_group }}", mode: '0644' }
+    - { file: db.local, owner: "{{ bind9_user }}", group: "{{ bind9_group }}", mode: '0644' }
 
 - name: DNS | Set resolv.conf to localhost
   copy:
     dest: "/etc/resolv.conf"
     content: |
-      nameserver 127.0.0.1
-      nameserver 8.8.8.8
       search {{ main_domain }}
+      nameserver 127.0.0.1
 
 - include_tasks: bind-firewall.yml

@@ -140,3 +140,142 @@ None.
 4. Add the role variables to `inventorygroup_vars\all.sops.yaml` (see `example.all.sops.yaml`).
 5. Setup the inventory hosts file `hots.yaml` (see `example.hosts.yaml`).
 6. Launch your playbook: `ansible-playbook -i inventory some_playbook.yml [-u ANSIBLE_USER]`
+
+## Zone configuration in separate role
+
+Example Ansible tasks:
+
+```yaml
+---
+- set_fact:
+    update_zone: false
+
+- block:
+    - name: DNS | Get stats of the target zone file
+      ansible.builtin.stat:
+        path: "{{ bind9_lib_path }}/db.{{ internal_domain }}"
+      register: zone_stats
+    - name: DNS | Get stats of the template zone file
+      ansible.builtin.stat:
+        path: "{{ role_path }}/templates/zones/internal-domain.zone.j2"
+      register: template_stats
+      become: false
+      delegate_to: localhost
+    - name: DNS | Check if the zone file is newer than the template
+      set_fact:
+        update_zone: true
+      when: not zone_stats.stat.exists or zone_stats.stat.mtime < template_stats.stat.mtime
+  when: inventory_hostname in groups.dns_master
+
+- name: Create or update the internal domain {{ internal_domain }} zone files
+  block:
+    - include_tasks: serialnumber.yaml
+
+    - name: DNS | Freeze the internal domain {{ internal_domain }} zones
+      ansible.builtin.shell: 'rndc freeze {{ internal_domain }}'
+      ignore_errors: true
+
+    - name: DNS | Copy internal domain {{ internal_domain }} zone file
+      template:
+        src: zones/internal-domain.zone.j2
+        dest: "{{ bind9_lib_path }}/db.{{ internal_domain }}"
+        owner: "{{ bind9_user }}"
+        group: "{{ bind9_group }}"
+        mode: 0644
+      register: resync_zone
+
+    - name: DNS | Copy internal domain {{ internal_domain }} reverse zone file
+      template:
+        src: zones/internal-domain.rev-zone.j2
+        dest: "{{ bind9_lib_path }}/db.{{ internal_domain }}.rev"
+        owner: "{{ bind9_user }}"
+        group: "{{ bind9_group }}"
+        mode: 0644
+      register: resync_rev_zone
+
+  always:
+    - name: DNS | Resync {{ internal_domain }} zone journal when files are updated
+      ansible.builtin.shell: 'rndc sync -clean {{ internal_domain }}'
+      when: resync_zone.changed | bool or resync_rev_zone.changed | bool
+
+    - name: DNS | Reload the internal domain {{ internal_domain }} zone files
+      ansible.builtin.shell: 'rndc reload {{ internal_domain }}'
+      ignore_errors: true
+
+    - name: DNS | Unfreeze the internal domain {{ internal_domain }} zone files
+      ansible.builtin.shell: 'rndc thaw {{ internal_domain }}'
+      ignore_errors: true
+
+  when: inventory_hostname in groups.dns_master and update_zone | bool
+
+- block:
+  - name: "DNS | Get services info"
+    ansible.builtin.service_facts:
+  - name: DNS | Fail if named is not running
+    ansible.builtin.fail:
+      msg: "DNS configuration failed, service not running!"
+    when: services['named'].state != 'running'
+  when: inventory_hostname in groups.dns_servers
+
+```
+
+Serialnumber generator:
+
+```yaml
+---
+- name: "{{ role_path|basename }} | get unix time"
+  shell: echo $(date +%s)
+  register: unix_time_stamp
+  delegate_to: localhost
+  run_once: true
+  become: false
+  changed_when: false
+
+- name: "{{ role_path|basename }} setting execution facts"
+  set_fact:
+    bind9_zone_serial: "{{ unix_time_stamp.stdout }}"
+  run_once: true
+  become: false
+```
+
+Zone file template:
+
+```yaml
+; {{ ansible_managed }}
+; synopsis: Zone file for the internal network domain
+$ORIGIN .
+$TTL 28800      ; 8 hours
+{{ internal_domain }}   IN SOA  dns01.{{ internal_domain }}. root.{{ internal_domain }}. (
+                                {{ bind9_zone_serial }} ; serial
+                                3600       ; refresh (1 hour)
+                                600        ; retry (10 minutes)
+                                86400      ; expire (1 day)
+                                30000      ; minimum (8 hours 20 minutes)
+                                )
+                        NS      dns01.{{ internal_domain }}.
+                        NS      dns02.{{ internal_domain }}.
+$ORIGIN {{ internal_domain }}.
+$TTL 3600
+server1                 A       10.0.0.1
+server2                 A       10.100.0.2
+dns01                   A       10.0.0.3
+```
+
+And reverse zone file template:
+
+```yaml
+$ORIGIN .
+$TTL 3600      ; 1 hour
+10.in-addr.arpa         IN SOA  dns01.{{ main_domain }}. root.{{ main_domain }}. (
+                                {{ bind9_zone_serial }}  ; serial
+                                604800     ; refresh (1 week)
+                                86400      ; retry (1 day)
+                                2419200    ; expire (4 weeks)
+                                604800     ; minimum (1 week)
+                                )
+                        NS      dns01.
+$ORIGIN 10.in-addr.arpa.
+$TTL 3600
+10.0.0.1                PTR     server1.{{ main_domain }}.
+10.100.0.2              PTR     server2.{{ main_domain }}.
+```
