@@ -9,6 +9,10 @@
     name: bind9
     state: reloaded
 
+- name: resync zones
+  ansible.builtin.shell: 'rndc sync --clean'
+  register: resync
+
 - name: Reboot Linux
   reboot:
     reboot_timeout: 300
