@@ -101,7 +101,7 @@
   ansible.builtin.copy:
     dest: /etc/resolv.conf
     content: |
-      search {{internal_domain}} {{main_domain}}
+      search {{search_domain}}
       nameserver 127.0.0.1
       nameserver 10.0.0.1
   when: inventory_hostname in groups.dns_servers
@@ -110,7 +110,7 @@
   ansible.builtin.copy:
     dest: /etc/resolv.conf
     content: |
-      search {{internal_domain}} {{main_domain}}
+      search {{search_domain}}
       nameserver {{hostvars[groups['dns_master'][0]]['ansible_default_ipv4']['address']}}
       nameserver {{hostvars[groups['dns_slave'][0]]['ansible_default_ipv4']['address']}}
       nameserver 10.0.0.1
