@@ -40,10 +40,13 @@
     group: root
     mode: 0644
   register: apparmor
+  when: inventory_hostname in groups.dns_servers
 
 - name: Reload changed Apparmor profiles
   command: apparmor_parser --replace "/etc/apparmor.d/usr.sbin.named"
-  when: apparmor.changed
+  when:
+    - inventory_hostname in groups.dns_servers
+    - apparmor.changed
   notify:
     - Reboot Linux
 
@@ -73,6 +76,7 @@
     owner: "{{bind9_user}}"
     group: "{{bind9_group}}"
     mode: 0775
+  when: inventory_hostname in groups.dns_servers
 
 - name: DNS | Copy bind9 config file
   ansible.builtin.template:
@@ -83,6 +87,7 @@
     mode: 0644
   notify:
     - restart bind9
+  when: inventory_hostname in groups.dns_servers
 
 - name: DNS | Change ownership of the 'db.xxx' files in /etc/bind
   ansible.builtin.file:
@@ -96,7 +101,8 @@
     - { file: db.255, owner: "{{bind9_user}}", group: "{{bind9_group}}", mode: '0644' }
     - { file: db.empty, owner: "{{bind9_user}}", group: "{{bind9_group}}", mode: '0644' }
     - { file: db.local, owner: "{{bind9_user}}", group: "{{bind9_group}}", mode: '0644' }
-
+  when: inventory_hostname in groups.dns_servers
+  
 - name: DNS | Set resolv.conf to localhost on DNS servers
   ansible.builtin.copy:
     dest: /etc/resolv.conf
