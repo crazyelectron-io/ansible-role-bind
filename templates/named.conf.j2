@@ -17,11 +17,14 @@ options {
     hostname none;
     server-id none;
 
+    {% if bind9_forward %}
     # Forward requests for non-auth domains
     forwarders {
-        {{bind9_forward_servers[0]}};
-        {{bind9_forward_servers[1]}};
+        {% for forwarder in bind9_forward_servers %}
+        {{forwarder}};
+        {% endfor %}
     };
+    {% endif%}
 
     # Define which clients can perform DNS queries
     allow-query { internals; };
