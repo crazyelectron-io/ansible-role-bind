@@ -20,7 +20,7 @@ These variables can be specified in the `all.sops.yaml` inventory file or in the
   become: true
   gather_facts: true
   vars:
-    bind9_forward: falses
+    bind9_forward: false
   roles:
     ...
     - bind
