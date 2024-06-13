@@ -7,7 +7,7 @@
   when: inventory_hostname in groups.dns_servers
 
 - name: DNS | Copy RNDC key file
-  template:
+  ansible.builtin.template:
     src: rndc.key.j2
     dest: /etc/bind/rndc.key
     owner: root
@@ -50,7 +50,7 @@
 - name: Setup logs
   block:
     - name: ensure existence of the log directory 
-      file:
+      ansible.builtin.file:
         path: "{{bind9_log_path}}"
         state: directory
         owner: "{{bind9_user}}"
@@ -75,7 +75,7 @@
     mode: 0775
 
 - name: DNS | Copy bind9 config file
-  ansible.builtin.emplate:
+  ansible.builtin.template:
     src: named.conf.j2
     dest: /etc/bind/named.conf
     owner: root
