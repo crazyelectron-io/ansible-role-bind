@@ -1,19 +1,27 @@
 ---
+# BIND packages to install
 bind9_packages:
   - bind9
   - bind9utils
   - bind9-dnsutils
   - bind9-doc
   - bind9-host
-
-# Logging
+# Logging parameters
 bind9_named_logging: True
 bind9_log_path: /var/log/bind
 bind9_lib_path: /var/lib/bind
 bind9_log_severity: info  # critical | error | warning | notice | info | debug [ level ] | dynamic
 bind9_log_versions: 3
-
-search_domain: "{{ main_domain }}"
-
+# The authorative domain for the local DNS servers
+search_domain: example.com
+# DNS forwarding
+bind9_forward: yes
+bind9_forward_servers:
+  - 8.8.8.8
+  - 1.1.1.1
+# Internal networks allowed to query
+internal_networks:
+  - 10.0.0.0/8
+  - 192.168.0.0/16
 # Indicate whether the main domain zone files must be reapplied (loosing DDNS registrations)
 install_zone_files: false

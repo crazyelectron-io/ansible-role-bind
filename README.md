@@ -11,9 +11,9 @@ Ansible role to setup a high available master-slave DNS configuration using BIND
 
 `rndc_key` must be specified for the secure Dynamic DNS update (used by DHCP).
 
-`main_domain` must be defined to create an entry in the Debian `/etc/resolv.conf` file and configure this domain as local zone on the DNS servers.
+`search_domain` must be defined to create an entry in the Debian `/etc/resolv.conf` file and configure this domain as authorative zone on the DNS servers.
 
-These variables can be specified in the `all.sops.yaml` inventory file or in the `vars`section of an Ansible playbook, like this:
+These variables can be specified in the `all.sops.yaml` inventory file (prefered) or in the `vars`section of an Ansible playbook, like this:
 
 ```yaml
 - hosts: all
@@ -21,6 +21,7 @@ These variables can be specified in the `all.sops.yaml` inventory file or in the
   gather_facts: true
   vars:
     bind9_forward: false
+    search_domain: example.com
   roles:
     ...
     - bind
@@ -34,11 +35,21 @@ These variables can be specified in the `all.sops.yaml` inventory file or in the
 
 `bind9_forward` - default is `yes` - specifies whether it should act as a DNS forwarder for non-authoritative zones.
 
-`bind9_forward_servers` - default is `1.1.1.1` and `8.8.8.8` and can be overriden as needed.
+`bind9_forward_servers` - default is `8.8.8.8` and `1.1.1.1` and can be overriden as needed.
 
 `bind9_log_severity` - default is `info` - possible values are `critical | error | warning | notice | info | debug [ level ] | dynamic`.
 
-`install_zone_files` - default is false - indicate whether the main domain zone files must be reapplied (loosing DDNS registrations)`
+`internal_networks` - default is `127.0.0.0/8`, `10.0.0.0/8` and `192.168.0.0/16` and can be overriden as needed. For instance:
+
+```yaml
+internal_networks:
+  - 127.0.0.0/8
+  - 10.10.0.0/22
+  - 10.20.0.0/24
+  - 10.60.10.0/24
+```
+
+`install_zone_files` - default is false - indicate whether the domain zone files must be reapplied (losing Dynamic DNS registrations from DHCP)`
 
 ## Encrypted configuration file
 

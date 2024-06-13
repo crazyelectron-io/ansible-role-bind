@@ -1,17 +1,17 @@
 ---
 - name: DNS | Deploy BIND9 packages
   ansible.builtin.apt:
-    pkg: "{{ bind9_packages }}"
+    pkg: "{{bind9_packages}}"
     state: present
     cache_valid_time: 600
   when: inventory_hostname in groups.dns_servers
 
 - name: DNS | Copy RNDC key file
   template:
-    src: "{{ bind9_templates | default('') }}rndc.key.j2"
+    src: rndc.key.j2
     dest: /etc/bind/rndc.key
     owner: root
-    group: "{{ bind9_group }}"
+    group: "{{bind9_group}}"
     mode: 0640
   notify:
     - restart bind9
@@ -31,21 +31,11 @@
     - role:bind9:ip4
   when: inventory_hostname in groups.dns_servers
 
-- name: DNS | Copy RNDC key file
-  template:
-    src: "{{ bind9_templates | default('') }}rndc.key.j2"
-    dest: /etc/bind/rndc.key
-    owner: root
-    group: "{{ bind9_group }}"
-    mode: 0640
-  notify:
-    - restart bind9
-
 - name: Allow logging in /var/log/bind
   ansible.builtin.lineinfile:
     path: /etc/apparmor.d/local/usr.sbin.named
-    regexp: '^{{ bind9_log_path }}'
-    line: '{{ bind9_log_path }}/bind.log rw,'
+    regexp: '^{{bind9_log_path}}'
+    line: '{{bind9_log_path}}/bind.log rw,'
     owner: root
     group: root
     mode: 0644
@@ -61,57 +51,71 @@
   block:
     - name: ensure existence of the log directory 
       file:
-        path: "{{ bind9_log_path }}"
+        path: "{{bind9_log_path}}"
         state: directory
-        owner: "{{ bind9_user }}"
-        group: "{{ bind9_group }}"
+        owner: "{{bind9_user}}"
+        group: "{{bind9_group}}"
         mode: 0775
 
     - name: configure log rotate for bind9
-      template:
-        src: "{{ bind9_templates | default('') }}logrotate.d/bind.j2"
+      ansible.builtin.template:
+        src: logrotate.d/bind.j2
         dest: /etc/logrotate.d/bind
         owner: root
-        group: "{{ bind9_group }}"
+        group: "{{bind9_group}}"
         mode: 0644
   when: bind9_named_logging and inventory_hostname in groups.dns_servers
 
-- name: DNS | Ensure existence of the {{ bind9_lib_path }} directory
-  file:
-    path: "{{ bind9_lib_path }}"
+- name: DNS | Ensure existence of the {{bind9_lib_path}} directory
+  ansible.builtin.file:
+    path: "{{bind9_lib_path}}"
     state: directory
-    owner: "{{ bind9_user }}"
-    group: "{{ bind9_group }}"
+    owner: "{{bind9_user}}"
+    group: "{{bind9_group}}"
     mode: 0775
 
 - name: DNS | Copy bind9 config file
-  template:
+  ansible.builtin.emplate:
     src: named.conf.j2
     dest: /etc/bind/named.conf
     owner: root
-    group: "{{ bind9_group }}"
+    group: "{{bind9_group}}"
     mode: 0644
   notify:
     - restart bind9
 
 - name: DNS | Change ownership of the 'db.xxx' files in /etc/bind
   ansible.builtin.file:
-    path: '/etc/bind/{{ item.file }}'
-    owner: '{{ item.owner }}'
-    group: '{{ item.group }}'
-    mode: '{{ item.mode }}'
+    path: '/etc/bind/{{item.file}}'
+    owner: '{{item.owner}}'
+    group: '{{item.group}}'
+    mode: '{{item.mode}}'
   loop:
-    - { file: db.0, owner: "{{ bind9_user }}", group: "{{ bind9_group }}", mode: '0644' }
-    - { file: db.127, owner: "{{ bind9_user }}", group: "{{ bind9_group }}", mode: '0644' }
-    - { file: db.255, owner: "{{ bind9_user }}", group: "{{ bind9_group }}", mode: '0644' }
-    - { file: db.empty, owner: "{{ bind9_user }}", group: "{{ bind9_group }}", mode: '0644' }
-    - { file: db.local, owner: "{{ bind9_user }}", group: "{{ bind9_group }}", mode: '0644' }
+    - { file: db.0, owner: "{{bind9_user}}", group: "{{bind9_group}}", mode: '0644' }
+    - { file: db.127, owner: "{{bind9_user}}", group: "{{bind9_group}}", mode: '0644' }
+    - { file: db.255, owner: "{{bind9_user}}", group: "{{bind9_group}}", mode: '0644' }
+    - { file: db.empty, owner: "{{bind9_user}}", group: "{{bind9_group}}", mode: '0644' }
+    - { file: db.local, owner: "{{bind9_user}}", group: "{{bind9_group}}", mode: '0644' }
 
-- name: DNS | Set resolv.conf to localhost
-  copy:
-    dest: "/etc/resolv.conf"
+- name: DNS | Set resolv.conf to localhost on DNS servers
+  ansible.builtin.copy:
+    dest: /etc/resolv.conf
     content: |
-      search {{ main_domain }}
+      search {{internal_domain}} {{main_domain}}
       nameserver 127.0.0.1
+      nameserver 10.0.0.1
+  when: inventory_hostname in groups.dns_servers
+
+- name: DNS | Set resolv.conf on non-DNS servers
+  ansible.builtin.copy:
+    dest: /etc/resolv.conf
+    content: |
+      search {{internal_domain}} {{main_domain}}
+      nameserver {{hostvars[groups['dns_master'][0]]['ansible_default_ipv4']['address']}}
+      nameserver {{hostvars[groups['dns_slave'][0]]['ansible_default_ipv4']['address']}}
+      nameserver 10.0.0.1
+      options timeout: 2
+  when: not inventory_hostname in groups.dns_servers
 
 - include_tasks: bind-firewall.yml
+  when: inventory_hostname in groups.dns_servers
