@@ -6,6 +6,9 @@ bind9_packages:
   - bind9-dnsutils
   - bind9-doc
   - bind9-host
+# BIND9 user and group
+bind9_user: bind
+bind9_group: bind
 # Logging parameters
 bind9_named_logging: True
 bind9_log_path: /var/log/bind
