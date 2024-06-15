@@ -1,7 +1,7 @@
 $ORIGIN .
 $TTL 3600      ; 1 hour
-10.in-addr.arpa         IN SOA  dns01.{{ main_domain }}. root.{{ main_domain }}. (
-                                2023110799 ; serial
+10.in-addr.arpa         IN SOA  dns01.{{search_domain }}. root.{{search_domain }}. (
+                                {{bind9_zone_serial}} ; serial
                                 604800     ; refresh (1 week)
                                 86400      ; retry (1 day)
                                 2419200    ; expire (4 weeks)
@@ -10,12 +10,6 @@ $TTL 3600      ; 1 hour
                         NS      dns01.
 $ORIGIN 10.in-addr.arpa.
 $TTL 3600
-1                       PTR     gateway.{{ main_domain }}.
-2                       PTR     mynas.{{ main_domain }}.
-3                       PTR     kvm.{{ main_domain }}.
-10                      PTR     dns01.{{ main_domain }}.
-8                       PTR     dns02.{{ main_domain }}.
-11                      PTR     prox01.{{ main_domain }}.
-12                      PTR     prox02.{{ main_domain }}.
-13                      PTR     prox03.{{ main_domain }}.
-
+{% for entry in bind9_rev_entries %}
+{{ entry.address}}  PTR {{entry.host}}.{{search_domain}}.
+{% endfor %}

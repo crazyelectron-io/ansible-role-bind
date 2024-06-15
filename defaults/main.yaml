@@ -26,5 +26,3 @@ bind9_forward_servers:
 internal_networks:
   - 10.0.0.0/8
   - 192.168.0.0/16
-# Indicate whether the main domain zone files must be reapplied (loosing DDNS registrations)
-install_zone_files: false

@@ -1,0 +1,49 @@
+---
+- name: DNS | Ensure existence of the {{bind9_lib_path}} directory
+  ansible.builtin.file:
+    path: "{{bind9_lib_path}}"
+    state: directory
+    owner: "{{bind9_user}}"
+    group: "{{bind9_group}}"
+    mode: 0775
+  when: inventory_hostname in groups.dns_servers
+
+- include_tasks: check-zonefile.yaml
+  when: inventory_hostname in groups.dns_master
+
+- name: Copy zone file for {{search_domain}} if changed
+  ansible.builtin.template:
+    src: zones/search-domain.zone.j2
+    dest: "{{bind9_lib_path}}/db.{{search_domain}}"
+    owner: "{{bind9_user}}"
+    group: "{{bind9_group}}"
+    mode: 0644
+  notify:
+    - restart bind9
+  when:
+    - inventory_hostname in groups.dns_master
+    - zone_file_update | bool
+
+- name: Copy reversed zone file for {{search_domain}} if changed
+  ansible.builtin.template:
+    src: zones/search-domain.rev-zone.j2
+    dest: "{{bind9_lib_path}}/db.{{search_domain}}.rev"
+    owner: "{{bind9_user}}"
+    group: "{{bind9_group}}"
+    mode: 0644
+  notify:
+    - restart bind9
+  when:
+    - inventory_hostname in groups.dns_master
+    - zone_file_update | bool
+
+- name: DNS | Copy bind9 config file
+  ansible.builtin.template:
+    src: named.conf.j2
+    dest: /etc/bind/named.conf
+    owner: root
+    group: "{{bind9_group}}"
+    mode: 0644
+  notify:
+    - restart bind9
+  when: inventory_hostname in groups.dns_servers

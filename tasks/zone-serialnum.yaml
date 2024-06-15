@@ -1,0 +1,14 @@
+---
+- name: "{{role_path|basename}} | Get UNIX time"
+  shell: echo $(date +%s)
+  register: unix_time_stamp
+  delegate_to: localhost
+  run_once: true
+  become: false
+  changed_when: false
+
+- name: "{{role_path|basename}} | Setting execution facts"
+  set_fact:
+    bind9_zone_serial: "{{unix_time_stamp.stdout}}"
+  run_once: true
+  become: false

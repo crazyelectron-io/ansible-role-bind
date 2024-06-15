@@ -1,4 +1,10 @@
 ---
+- include_tasks: bind-firewall.yml
+  when: inventory_hostname in groups.dns_servers
+
+- include_tasks: zone-serialnum.yaml
+  when: inventory_hostname in groups.dns_master
+
 - name: DNS | Deploy BIND9 packages
   ansible.builtin.apt:
     pkg: "{{bind9_packages}}"
@@ -50,6 +56,20 @@
   notify:
     - Reboot Linux
 
+- name: DNS | Change ownership of the 'db.xxx' files in /etc/bind
+  ansible.builtin.file:
+    path: '/etc/bind/{{item.file}}'
+    owner: '{{item.owner}}'
+    group: '{{item.group}}'
+    mode: '{{item.mode}}'
+  loop:
+    - { file: db.0, owner: "{{bind9_user}}", group: "{{bind9_group}}", mode: '0644' }
+    - { file: db.127, owner: "{{bind9_user}}", group: "{{bind9_group}}", mode: '0644' }
+    - { file: db.255, owner: "{{bind9_user}}", group: "{{bind9_group}}", mode: '0644' }
+    - { file: db.empty, owner: "{{bind9_user}}", group: "{{bind9_group}}", mode: '0644' }
+    - { file: db.local, owner: "{{bind9_user}}", group: "{{bind9_group}}", mode: '0644' }
+  when: inventory_hostname in groups.dns_servers
+
 - name: Setup logs
   block:
     - name: ensure existence of the log directory 
@@ -69,39 +89,8 @@
         mode: 0644
   when: bind9_named_logging and inventory_hostname in groups.dns_servers
 
-- name: DNS | Ensure existence of the {{bind9_lib_path}} directory
-  ansible.builtin.file:
-    path: "{{bind9_lib_path}}"
-    state: directory
-    owner: "{{bind9_user}}"
-    group: "{{bind9_group}}"
-    mode: 0775
-  when: inventory_hostname in groups.dns_servers
-
-- name: DNS | Copy bind9 config file
-  ansible.builtin.template:
-    src: named.conf.j2
-    dest: /etc/bind/named.conf
-    owner: root
-    group: "{{bind9_group}}"
-    mode: 0644
-  notify:
-    - restart bind9
-  when: inventory_hostname in groups.dns_servers
-
-- name: DNS | Change ownership of the 'db.xxx' files in /etc/bind
-  ansible.builtin.file:
-    path: '/etc/bind/{{item.file}}'
-    owner: '{{item.owner}}'
-    group: '{{item.group}}'
-    mode: '{{item.mode}}'
-  loop:
-    - { file: db.0, owner: "{{bind9_user}}", group: "{{bind9_group}}", mode: '0644' }
-    - { file: db.127, owner: "{{bind9_user}}", group: "{{bind9_group}}", mode: '0644' }
-    - { file: db.255, owner: "{{bind9_user}}", group: "{{bind9_group}}", mode: '0644' }
-    - { file: db.empty, owner: "{{bind9_user}}", group: "{{bind9_group}}", mode: '0644' }
-    - { file: db.local, owner: "{{bind9_user}}", group: "{{bind9_group}}", mode: '0644' }
-  when: inventory_hostname in groups.dns_servers
+- include_tasks: bind-config.yaml
+  when: inventory_hostname in groups.dns_master
   
 - name: DNS | Set resolv.conf to localhost on DNS servers
   ansible.builtin.copy:
@@ -123,5 +112,33 @@
       options timeout: 2
   when: not inventory_hostname in groups.dns_servers
 
-- include_tasks: bind-firewall.yml
-  when: inventory_hostname in groups.dns_servers
+# - name: Check if zone files are changed
+#   block:
+#   - name: Read modification time from /etc/bind/zone_timestamp (default=0)
+#     set_fact:
+#       my_mtime_max: "{{ lookup('pipe', my_command) }}"
+#     vars:
+#       my_command: sh -c '[ -e /etc/bind/zone_timestamp ] && cat /etc/bind/zone_timestamp || echo 0'
+
+#   - name: Find all zone files
+#     find:
+#       paths: "{{bind_lib_path}}"
+#     register: my_zones
+
+#   - name: Find zone files newer than timestamp
+#     set_fact:
+#       my_zones_newer: "{{ my_zones.files|json_query(query)|map('basename')|list }}"
+#     vars:
+#       query: "[?mtime > to_number('{{ my_mtime_max }}')].path"
+
+#   - block:
+#       - name: "Reload {{ my_zones_newer|join(',') }}"
+#         command: rndc reload
+#       - name: Set mtime of newest zone file to my_mtime_max
+#         set_fact:
+#           my_mtime_max: "{{ my_zones.files|json_query('[].mtime')|max }}"
+#       - name: Store my_mtime_max in /etc/bind/zone_timestamp
+#         template:
+#           src: timestamp.j2
+#           dest: /etc/bind/zone_timestamp
+#     when: my_zones_newer|length > 0

@@ -1,0 +1,30 @@
+---
+- name: "{{role_path|basename}} | Check if zone file need to be updated"
+  block:
+    - name: "{{role_path|basename}} | Get modification time of remote zone file"
+      ansible.builtin.stat:
+        path: "{{bind9_lib_path}}/db.{{search_domain}}"
+      register: remote_zone_file
+    - set_fact:
+        zone_file_mtime: 0
+      when: not remote_zone_file.stat.exists
+    - set_fact:
+        zone_file_mtime: "{{remote_zone_file.stat.mtime}}"
+      when: remote_zone_file.stat.exists
+
+    - set_fact:
+        zone_file_update: false
+    - name: "{{role_path|basename}} | Get modification time of local zone file"
+      delegate_to: localhost
+      become: false
+      ansible.builtin.stat:
+        path: "{{role_path}}/templates/zones/search-domain.zone.j2"
+      register: local_zone_file
+    - name: Set local zone time
+      set_fact:
+        local_file_mtime: "{{local_zone_file.stat.mtime}}"
+
+    - set_fact:
+        zone_file_update: true
+      when: local_file_mtime > zone_file_mtime
+  when: inventory_hostname in groups.dns_master

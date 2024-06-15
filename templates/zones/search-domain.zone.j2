@@ -1,0 +1,16 @@
+$ORIGIN .
+$TTL 28800      ; 8 hours
+{{search_domain}}       IN SOA  dns01.{{search_domain}}. root.{{search_domain}}. (
+                                {{bind9_zone_serial}} ; serial
+                                3600       ; refresh (1 hour)
+                                600        ; retry (10 minutes)
+                                86400      ; expire (1 day)
+                                30000      ; minimum (8 hours 20 minutes)
+                                )
+                        NS      dns01.{{search_domain}}.
+                        NS      dns02.{{search_domain}}.
+$ORIGIN {{search_domain}}.
+$TTL 3600
+{% for entry in bind9_zone_entries %}
+{{ entry.address}}  {{entry.rtype}} {{entry.address}}
+{% endfor %}
