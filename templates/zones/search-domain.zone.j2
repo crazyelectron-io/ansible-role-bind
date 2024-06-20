@@ -11,6 +11,13 @@ $TTL 28800      ; 8 hours
                         NS      dns02.{{search_domain}}.
 $ORIGIN {{search_domain}}.
 $TTL 3600
+dns01   A   {{primary_dns}}
+{% if secondary_dns is defined %}
+dns02   A   {{secondary_dns}}
+{% endif %}
 {% for entry in bind9_zone_entries %}
 {{ entry.address}}  {{entry.rtype}} {{entry.address}}
+{% endfor %}
+{% for server in groups['cluster'] %}
+{{hostvars[server]['ansible_facts']['hostname']}} A {{hostvars[server]['ansible_facts']['default_ipv4']['address']}}
 {% endfor %}

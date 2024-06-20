@@ -10,6 +10,15 @@ $TTL 3600      ; 1 hour
                         NS      dns01.
 $ORIGIN 10.in-addr.arpa.
 $TTL 3600
-{% for entry in bind9_rev_entries %}
-{{ entry.address}}  PTR {{entry.host}}.{{search_domain}}.
+{{primary_dns | ptr_address(3)}}  PTR dns01.{{search_domain}}.
+{% if secondary_dns is defined %}
+{{secondary_dns | ptr_address(3)}}  PTR dns02.{{search_domain}}.
+{% endif %}
+{% for entry in bind9_zone_entries %}
+{% if entry.rtype == 'A' %}
+{{ entry.address | ptr_address(3)}}  PTR {{entry.host}}.{{search_domain}}.
+{% endif %}
+{% endfor %}
+{% for server in groups['cluster'] %}
+{{hostvars[server]['ansible_facts']['default_ipv4']['address'] | ptr_address(3)}} PTR {{hostvars[server]['ansible_facts']['hostname']}}.{{search_domain}}.
 {% endfor %}
