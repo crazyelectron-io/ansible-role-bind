@@ -47,3 +47,15 @@
   notify:
     - restart bind9
   when: inventory_hostname in groups.dns_servers
+
+- name: Cleanup default bind9 config files
+  ansible.builtin.file:
+    path: "/etc/bind/{{item}}"
+    state: absent
+  notify:
+    - reload bind9
+  with_items:
+    - named.conf.default-zones
+    - named.conf.local
+    - named.conf.options
+  when: inventory_hostname in groups.dns_servers
