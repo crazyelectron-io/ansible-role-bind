@@ -1,3 +1,6 @@
+# file: roles/bind/templates/named.conf.j2
+# synopsis: Bind9 main configuration file
+
 options {
     # Working directory where all relative paths start from
     directory "/var/cache/bind";
@@ -16,6 +19,9 @@ options {
     version "not currently available";
     hostname none;
     server-id none;
+
+    # Linit to DNS cahce size to 256MB (default is 90% of RAM).
+    max-cache-size 256m;
 
     {% if bind9_forward %}
     # Forward requests for non-auth domains
@@ -63,14 +69,16 @@ options {
 
 # Define our local networks
 acl internals {
-    {% for cidr in internal_networks %}
-    {{cidr}};
-    {% endfor %}
+  localnets;
+  127.0.0.1;
+  {% for cidr in internal_networks %}
+  {{cidr}};
+  {% endfor %}
 };
 
 logging {
     channel default_syslog {
-        file "/var/log/bind/bind.log" versions 3 size 5m;
+        file "/var/log/named/bind.log" versions 3 size 5m;
         print-time yes;
         print-category yes;
         print-severity yes;
@@ -115,6 +123,7 @@ zone {{search_domain}} {
     allow-update-forwarding { {{hostvars[groups['dns_master'][0]]['ansible_default_ipv4']['address']}}; };
 {% endif %}
     notify yes;
+    allow-query { any; };
     file "/var/lib/bind/db.{{search_domain}}";
     journal "/var/lib/bind/db.{{search_domain}}.jnl";
 };
@@ -130,6 +139,7 @@ zone 10.in-addr.arpa {
     allow-update-forwarding { {{hostvars[groups['dns_master'][0]]['ansible_default_ipv4']['address']}}; };
 {% endif %}
     notify yes;
+    allow-query { any; };
     file "/var/lib/bind/db.{{search_domain}}.rev";
     journal "/var/lib/bind/db.{{search_domain}}.rev.jnl";
 };
@@ -147,22 +157,53 @@ zone localhost {
     type primary;
     file "/etc/bind/db.local";
     notify no;
+    allow-update { localhost; };
 };
 
 zone 127.in-addr.arpa {
     type primary;
     file "/etc/bind/db.127";
     notify no;
+    allow-update { localhost; };
 };
 
 zone 0.in-addr.arpa {
     type primary;
     file "/etc/bind/db.0";
     notify no;
+    allow-update { localhost; };
 };
 
 zone 255.in-addr.arpa {
     type primary;
     file "/etc/bind/db.255";
     notify no;
+    allow-update { localhost; };
 };
+
+### #TODO: Define the chaos zone
+##view "chaos" chaos  {
+##  recursion no;
+##  notify no;
+##  allow-new-zones no;
+##  max-cache-size 2M;
+##
+##  # Prevent use of this zone in DNS amplified reflection DoS attacks
+##  rate-limit {
+##    responses-per-second 3;
+##    slip 0;
+##    min-table-size 10;
+##  };
+##
+##  zone "bind" chaos {
+##    type primary;
+##    file "/etc/bind/db.bind";
+##    allow-update { none; };
+##  };
+##
+##  zone "server" chaos {
+##    type primary;
+##    file "/etc/bind/db.server";
+##    allow-update { none; };
+##  };
+##};
