@@ -76,7 +76,7 @@
     content: |
       search {{search_domain}}
       nameserver 127.0.0.1
-      nameserver 10.0.0.1
+      nameserver {{public_dns}}
   when: inventory_hostname in groups.dns_servers
 
 - name: DNS | Set resolv.conf on non-DNS servers
@@ -86,37 +86,5 @@
       search {{search_domain}}
       nameserver {{hostvars[groups['dns_master'][0]]['ansible_default_ipv4']['address']}}
       nameserver {{hostvars[groups['dns_slave'][0]]['ansible_default_ipv4']['address']}}
-      nameserver 10.0.0.1
       options timeout: 2
   when: not inventory_hostname in groups.dns_servers
-
-# - name: Check if zone files are changed
-#   block:
-#   - name: Read modification time from /etc/bind/zone_timestamp (default=0)
-#     set_fact:
-#       my_mtime_max: "{{ lookup('pipe', my_command) }}"
-#     vars:
-#       my_command: sh -c '[ -e /etc/bind/zone_timestamp ] && cat /etc/bind/zone_timestamp || echo 0'
-
-#   - name: Find all zone files
-#     find:
-#       paths: "{{bind_lib_path}}"
-#     register: my_zones
-
-#   - name: Find zone files newer than timestamp
-#     set_fact:
-#       my_zones_newer: "{{ my_zones.files|json_query(query)|map('basename')|list }}"
-#     vars:
-#       query: "[?mtime > to_number('{{ my_mtime_max }}')].path"
-
-#   - block:
-#       - name: "Reload {{ my_zones_newer|join(',') }}"
-#         command: rndc reload
-#       - name: Set mtime of newest zone file to my_mtime_max
-#         set_fact:
-#           my_mtime_max: "{{ my_zones.files|json_query('[].mtime')|max }}"
-#       - name: Store my_mtime_max in /etc/bind/zone_timestamp
-#         template:
-#           src: timestamp.j2
-#           dest: /etc/bind/zone_timestamp
-#     when: my_zones_newer|length > 0

@@ -20,6 +20,7 @@
     dest: "{{bind9_lib_path}}/db.{{search_domain}}"
     owner: "{{bind9_user}}"
     group: "{{bind9_group}}"
+    force: true
     mode: 0644
   notify:
     - resync zones
