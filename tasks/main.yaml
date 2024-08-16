@@ -37,25 +37,6 @@
     - role:bind9:ip4
   when: inventory_hostname in groups.dns_servers
 
-- name: Allow logging in /var/log/bind
-  ansible.builtin.lineinfile:
-    path: /etc/apparmor.d/local/usr.sbin.named
-    regexp: '^{{bind9_log_path}}'
-    line: '{{bind9_log_path}}/bind.log rw,'
-    owner: root
-    group: root
-    mode: 0644
-  register: apparmor
-  when: inventory_hostname in groups.dns_servers
-
-- name: Reload changed Apparmor profiles
-  command: apparmor_parser --replace "/etc/apparmor.d/usr.sbin.named"
-  when:
-    - inventory_hostname in groups.dns_servers
-    - apparmor.changed
-  notify:
-    - Reboot Linux
-
 - name: DNS | Change ownership of the 'db.xxx' files in /etc/bind
   ansible.builtin.file:
     path: '/etc/bind/{{item.file}}'

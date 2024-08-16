@@ -2,16 +2,13 @@
 # BIND packages to install
 bind9_packages:
   - bind9
-  - bind9utils
-  - bind9-dnsutils
-  - bind9-doc
-  - bind9-host
+  - dnsutils
 # BIND9 user and group
 bind9_user: bind
 bind9_group: bind
 # Logging parameters
 bind9_named_logging: True
-bind9_log_path: /var/log/bind
+bind9_log_path: /var/log/named
 bind9_lib_path: /var/lib/bind
 bind9_log_severity: info  # critical | error | warning | notice | info | debug [ level ] | dynamic
 bind9_log_versions: 3
@@ -24,6 +21,5 @@ bind9_forward_servers:
   - 1.1.1.1
 # Internal networks allowed to query
 internal_networks:
-  - 127.0.0.0/24
   - 10.0.0.0/8
   - 192.168.0.0/16
