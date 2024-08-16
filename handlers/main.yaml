@@ -10,5 +10,5 @@
     state: reloaded
 
 - name: resync zones
-  ansible.builtin.shell: "rndc sync --clean {{search_domain}} && rndc reload {{search_domain}}"
+  ansible.builtin.shell: "rndc sync {{search_domain}} && rndc freeze {{search_domain}} && rndc reload {{search_domain}} && rndc thaw {{search_domain}}"
   register: resync
