@@ -10,10 +10,5 @@
     state: reloaded
 
 - name: resync zones
-  ansible.builtin.shell: 'rndc sync --clean'
+  ansible.builtin.shell: "rndc sync --clean {{search_domain}} && rndc reload {{search_domain}}"
   register: resync
-
-- name: Reboot Linux
-  reboot:
-    reboot_timeout: 300
-  register: reboot

@@ -8,6 +8,9 @@
     mode: 0775
   when: inventory_hostname in groups.dns_servers
 
+- include_tasks: zone-serialnum.yaml
+  when: inventory_hostname in groups.dns_master
+
 - include_tasks: check-zonefile.yaml
   when: inventory_hostname in groups.dns_master
 
@@ -19,7 +22,7 @@
     group: "{{bind9_group}}"
     mode: 0644
   notify:
-    - restart bind9
+    - resync zones
   when:
     - inventory_hostname in groups.dns_master
     - zone_file_update | bool
@@ -32,7 +35,7 @@
     group: "{{bind9_group}}"
     mode: 0644
   notify:
-    - restart bind9
+    - resync zones
   when:
     - inventory_hostname in groups.dns_master
     - zone_file_update | bool

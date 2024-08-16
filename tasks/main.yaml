@@ -2,9 +2,6 @@
 - include_tasks: bind-firewall.yml
   when: inventory_hostname in groups.dns_servers
 
-- include_tasks: zone-serialnum.yaml
-  when: inventory_hostname in groups.dns_master
-
 - name: DNS | Deploy BIND9 packages
   ansible.builtin.apt:
     pkg: "{{bind9_packages}}"
